@@ -1,8 +1,10 @@
+version: '3'
 services:
-  db:
+  mysql8:
     image: dirgar/mysql8:01
+    container_name: mysql8db
     volumes:
-      - mysql-data:/var/lib/mysql
+      - /apps/volumes/mysql8/mysql-data:/var/lib/mysql
     environment:
       - MYSQL_ROOT_PASSWORD=root
     ports:
