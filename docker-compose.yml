@@ -1,0 +1,9 @@
+services:
+  db:
+    image: dirgar/mysql8:01
+    volumes:
+      - mysql-data:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+    ports:
+      - "3307:3306"
