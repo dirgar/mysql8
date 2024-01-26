@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -12,32 +12,34 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
-FROM oraclelinux:7-slim
 
-ARG MYSQL_SERVER_PACKAGE=mysql-community-server-minimal-8.0.19
-ARG MYSQL_SHELL_PACKAGE=mysql-shell-8.0.19
+FROM container-registry.oracle.com/os/oraclelinux:8-slim
 
-# Install server
-RUN yum install -y https://repo.mysql.com/mysql-community-minimal-release-el7.rpm \
-      https://repo.mysql.com/mysql-community-release-el7.rpm \
-  && yum-config-manager --enable mysql80-server-minimal \
-  && yum install -y \
-      $MYSQL_SERVER_PACKAGE \
-      $MYSQL_SHELL_PACKAGE \
-      libpwquality \
-  && yum clean all \
+ARG MYSQL_SERVER_PACKAGE=mysql-community-server-minimal-8.3.0
+ARG MYSQL_SHELL_PACKAGE=mysql-shell-8.3.0
+
+# Setup repositories for minimal packages (all versions)
+RUN rpm -U http://repo.mysql.oraclecorp.com/mysql-uat/repos-stage/mysql-community-minimal-release-el8.rpm \
+  && rpm -U http://repo.mysql.oraclecorp.com/mysql-uat/repos-stage/mysql80-community-release-el8.rpm
+
+# Install server and shell 8.0
+RUN microdnf update && echo "[main]" > /etc/dnf/dnf.conf \
+  && microdnf install -y --enablerepo=mysql-tools-innovation-community $MYSQL_SHELL_PACKAGE \
+  && microdnf install -y --disablerepo=ol8_appstream \
+   --enablerepo=mysql-innovation-community-minimal $MYSQL_SERVER_PACKAGE \
+  && microdnf remove mysql-community-minimal-release mysql80-community-release \
+  && microdnf clean all \
   && mkdir /docker-entrypoint-initdb.d
 
-VOLUME /var/lib/mysql
+COPY prepare-image.sh /
+RUN /prepare-image.sh && rm -f /prepare-image.sh
+
+ENV MYSQL_UNIX_PORT /var/lib/mysql/mysql.sock
 
 COPY docker-entrypoint.sh /entrypoint.sh
 COPY healthcheck.sh /healthcheck.sh
-
-RUN chmod +x /entrypoint.sh
-RUN chmod +x /healthcheck.sh
-
 ENTRYPOINT ["/entrypoint.sh"]
 HEALTHCHECK CMD /healthcheck.sh
-EXPOSE 3306 33060
+EXPOSE 3306 33060 33061
 CMD ["mysqld"]
 
